@@ -44,6 +44,8 @@ var ImageLoader = (function(window, document, undefined) {
     ImageLoader.prototype = {
         init: function() {
             if ($.instance) return;
+            
+            $.instance = true;
 
             this._defineImages();
             this._hide();
@@ -62,7 +64,6 @@ var ImageLoader = (function(window, document, undefined) {
                 var currImg = this._allImages[i];
 
                 if ((currImg.dataset.realsrc) !== undefined) {
-                    $.instance = true;
                     this._images.push(currImg);
                 }
             }
