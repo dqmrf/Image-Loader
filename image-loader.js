@@ -1,12 +1,20 @@
+/**
+ * Image Loader - JavaScript Library.
+ * @description Script for the gradual loading of images.
+ * @author Misha Pelykh
+ * @version 1.0.0
+ */
 var ImageLoader = (function(window, document, undefined) {
 
     var $ = ImageLoader.global = {};
 
-    var _slice = Array.prototype.slice;
-    var _window = {
-        width: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
-        height: window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight
-    };
+    var _slice = Array.prototype.slice,
+        _docEl = document.documentElement,
+        _docBody = document.body,
+        _window = {
+            width: window.innerWidth || _docEl.clientWidth || _docBody.clientWidth,
+            height: window.innerHeight || _docEl.clientHeight || _docBody.clientHeight
+        };
 
     $.instance = false;
 
@@ -41,7 +49,7 @@ var ImageLoader = (function(window, document, undefined) {
             var coords = this._coords;
 
             this._images.forEach(function(image, i){
-                coords[i] = getCoords(image.llWrapper);;
+                coords[i] = getCoords(image.llWrapper);
             });
 
             this._watch();
@@ -129,8 +137,10 @@ var ImageLoader = (function(window, document, undefined) {
         _addEventListener: function(target, type, listener, setContext = false) {
             if (!this._listeners[target]) this._listeners[target] = [];
 
-            this._listeners[target][type] = setContext ? listener.bind(this) : listener;
-            target.addEventListener(type, this._listeners[target][type]);
+            var listTarget = this._listeners[target];
+
+            listTarget[type] = setContext ? listener.bind(this) : listener;
+            target.addEventListener(type, listTarget[type]);
         },
 
         _removeEventListener: function(target, type) {
@@ -199,7 +209,7 @@ var ImageLoader = (function(window, document, undefined) {
             }
         };
 
-        for ( ; i < length; i++ ) {
+        for (; i < length; i++ ) {
             var obj = arguments[i];
             merge(obj);
         }
@@ -208,26 +218,20 @@ var ImageLoader = (function(window, document, undefined) {
     }
 
     function getWindowScroll() {
-        var body = document.body;
-        var docEl = document.documentElement;
-
         return {
-            top: window.pageYOffset || docEl.scrollTop || body.scrollTop,
-            left: window.pageXOffset || docEl.scrollLeft || body.scrollLeft
+            top: window.pageYOffset || _docEl.scrollTop || _docBody.scrollTop,
+            left: window.pageXOffset || _docEl.scrollLeft || _docBody.scrollLeft
         }
     }
 
     function getCoords(elem) {
         var box = elem.getBoundingClientRect();
 
-        var body = document.body;
-        var docEl = document.documentElement;
+        var scrollTop = window.pageYOffset || _docEl.scrollTop || _docBody.scrollTop;
+        var scrollLeft = window.pageXOffset || _docEl.scrollLeft || _docBody.scrollLeft;
 
-        var scrollTop = window.pageYOffset || docEl.scrollTop || body.scrollTop;
-        var scrollLeft = window.pageXOffset || docEl.scrollLeft || body.scrollLeft;
-
-        var clientTop = docEl.clientTop || body.clientTop || 0;
-        var clientLeft = docEl.clientLeft || body.clientLeft || 0;
+        var clientTop = _docEl.clientTop || _docBody.clientTop || 0;
+        var clientLeft = _docEl.clientLeft || _docBody.clientLeft || 0;
 
         return {
             top: box.top + scrollTop - clientTop,
@@ -239,11 +243,3 @@ var ImageLoader = (function(window, document, undefined) {
 
     return ImageLoader;
 }(window, document, undefined));
-
-// __init__
-var lazyLoader;
-setTimeout(function(){
-    lazyLoader = new ImageLoader({
-        preloader: '<i class=\"fa fa-circle-o-notch fa-spin fa-3x fa-fw\"></i>'
-    });
-}, 1600);
