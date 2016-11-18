@@ -1,8 +1,8 @@
 /**
  * Image Loader - JavaScript Library.
- * @description Script for the gradual loading of images.
+ * @description Script for the gradual loading images.
  * @author Misha Pelykh
- * @version 1.0.0
+ * @version 1.1.0
  */
 var ImageLoader = (function(window, document, undefined) {
 
@@ -19,6 +19,13 @@ var ImageLoader = (function(window, document, undefined) {
     $.instance = false;
 
     $.defaults = {
+        watching: {
+            scroll: false,
+            timeout: {
+                step: 200
+            },
+        },
+        deep: 200,
         preloader: false
     }
 
@@ -27,9 +34,12 @@ var ImageLoader = (function(window, document, undefined) {
 
         this._allImages = document.getElementsByTagName('IMG');
         this._images = [];
-        this._coords = [];
+        // this._coords = [];
 
         this._listeners = [];
+        this._timeout = false;
+
+        this._deep = this._options.deep ? this._options.deep : 0;
 
         this.init();
     }
@@ -37,21 +47,13 @@ var ImageLoader = (function(window, document, undefined) {
     ImageLoader.prototype = {
         init: function() {
             if ($.instance) return;
+            
+            $.instance = true;
 
             this._defineImages();
             this._hide();
             this._setEventListeners();
             this._setInitEvent();
-            this._watch();
-        },
-
-        upateCoords: function() {
-            var coords = this._coords;
-
-            this._images.forEach(function(image, i){
-                coords[i] = getCoords(image.llWrapper);
-            });
-
             this._watch();
         },
 
@@ -65,7 +67,6 @@ var ImageLoader = (function(window, document, undefined) {
                 var currImg = this._allImages[i];
 
                 if ((currImg.dataset.realsrc) !== undefined) {
-                    $.instance = true;
                     this._images.push(currImg);
                 }
             }
@@ -85,11 +86,13 @@ var ImageLoader = (function(window, document, undefined) {
 
             function wrap(image) {
                 var wrapper = document.createElement('DIV');
-                var coords;
 
-                wrapper.style.width = image.width + 'px';
-                wrapper.style.height = (image.width / image.getAttribute('width')) * image.height + 'px';
-                wrapper.style.backgroundColor = '#fff';
+                var width = image.width;
+                var height = image.getAttribute('height');
+                // var coords;
+
+                wrapper.style.width = width + 'px';
+                wrapper.style.height = (image.width / image.getAttribute('width')) * height + 'px';
                 wrapper.classList = 'lazyload-holder';
 
                 image.parentNode.insertBefore(wrapper, image);
@@ -97,8 +100,8 @@ var ImageLoader = (function(window, document, undefined) {
                 wrapper.appendChild(image);
                 if (_._options.preloader) wrapper.insertAdjacentHTML('beforeend', _._options.preloader);
 
-                coords = getCoords(wrapper);
-                _._coords.push(coords);
+                // coords = getCoords(wrapper);
+                // _._coords.push(coords);
 
                 image.style.height = 'auto';
                 image.style.display = 'none';
@@ -125,16 +128,28 @@ var ImageLoader = (function(window, document, undefined) {
         },
 
         _setEventListeners: function() {
-            this._addEventListener(window, 'scroll', this._windowOnScroll, true);
+            var watching = this._options.watching;
+
+            if (typeof watching === 'object') {
+                if (typeof watching.timeout === 'object' && watching.timeout.step) {
+                    this._timeout = true;
+                    this._parseByTimeout(watching.timeout.step);
+                }
+                if (typeof watching.window === 'object' && watching.window.step) {
+                    this._addEventListener(window, 'scroll', this._windowOnScroll, true);
+                }
+            }
+
             this._addEventListener(window, 'resize', this._windowOnResize, true);
         },
 
         _removeElentListeners: function() {
+            this._timeout = false;
             this._removeEventListener(window, 'scroll');
             this._removeEventListener(window, 'resize');
         },
 
-        _addEventListener: function(target, type, listener, setContext = false) {
+        _addEventListener: function(target, type, listener, setContext) {
             if (!this._listeners[target]) this._listeners[target] = [];
 
             var listTarget = this._listeners[target];
@@ -144,11 +159,29 @@ var ImageLoader = (function(window, document, undefined) {
         },
 
         _removeEventListener: function(target, type) {
-            target.removeEventListener(type, this._listeners[target][type]);
+            var newTarget = this._listeners[target];
+
+            if (newTarget && newTarget[type]) {
+                target.removeEventListener(type, this._listeners[target][type]);
+            }
         },
 
         _windowOnScroll: function() {
             this._watch();
+        },
+
+        _parseByTimeout: function(step) {
+            var _ = this;
+
+            var parse = function() {
+                setTimeout(function(){
+                    if (!_._timeout) return;
+                    _._watch();
+                    parse();
+                }, step);
+            };
+
+            parse();
         },
 
         _watch: function() {
@@ -157,17 +190,19 @@ var ImageLoader = (function(window, document, undefined) {
                 return;
             }
 
-            var winTop = getWindowScroll().top,
-                winBottom = winTop + _window.height;
+            var _ = this;
+            var winTop = getWindowScroll().top - this._deep,
+                winBottom = winTop + _window.height + this._deep * 2;
 
-            for (var i = 0; i < this._coords.length; i++) {
+            for (var i = 0; i < this._images.length; i++) {
                 if (!this._images[i]) continue;
 
-                if ( (this._coords[i].top < winBottom || this._coords[i].bottom < winTop) && (this._coords[i].bottom > winTop) ) {
-                    this._show(this._images[i]);
+                var coords = getCoords(this._images[i].llWrapper);
 
+                if ( (coords.top < winBottom || coords.bottom < winTop) && (coords.bottom > winTop) ) {
+                    this._show(this._images[i]);
                     this._images.splice(i, 1);
-                    this._coords.splice(i, 1);
+                    // this._coords.splice(i, 1);
                     i--;
                 }
             }
@@ -183,7 +218,17 @@ var ImageLoader = (function(window, document, undefined) {
 
         _cleanUp: function() {
             this._removeElentListeners();
-        }
+        },
+
+        // updateCoords: function() {
+        //     var coords = this._coords;
+
+        //     this._images.forEach(function(image, i){
+        //         coords[i] = getCoords(image.llWrapper);
+        //     });
+
+        //     this._watch();
+        // },
     }
 
     function extend() {
